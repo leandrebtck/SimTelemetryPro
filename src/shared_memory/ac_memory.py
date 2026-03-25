@@ -289,6 +289,15 @@ class ACReader(BaseReader):
         if g.status == 0:
             return None
 
+        # Find player world position from carCoordinates
+        pid = g.playerCarID
+        pos_x, pos_z = 0.0, 0.0
+        for _i in range(min(g.activeCars, 60)):
+            if g.carID[_i] == pid:
+                pos_x = float(g.carCoordinates[_i][0])
+                pos_z = float(g.carCoordinates[_i][2])
+                break
+
         return TelemetryFrame(
             sim=self.SIM_NAME,
             timestamp_ms=int(time.time() * 1000),
@@ -341,4 +350,7 @@ class ACReader(BaseReader):
             ride_height_front=p.rideHeight[0],
             ride_height_rear=p.rideHeight[1],
             brake_bias=p.brakeBias,
+            # Position
+            pos_x=pos_x,
+            pos_z=pos_z,
         )

@@ -398,4 +398,6 @@ class LMUReader(BaseReader):
             ride_height_rear=float(vt.mRearRideHeight),
             brake_bias=float(vt.mRearBrakeBias),
             water_temp=float(vt.mEngineWaterTemp),
+            pos_x=float(vt.mPos.x),
+            pos_z=float(vt.mPos.z),
         )

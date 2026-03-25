@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import sys
+from collections import deque
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List, Tuple
 
-from PyQt6.QtCore import Qt, QRectF
+from PyQt6.QtCore import Qt, QRectF, QPointF
 from PyQt6.QtGui import (
     QColor, QFont, QPainter, QPen, QBrush, QLinearGradient, QPixmap, QTransform,
+    QPolygonF,
 )
 from PyQt6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QLabel, QGroupBox,
@@ -350,6 +352,154 @@ class TyreTempCell(QWidget):
 
 
 # ---------------------------------------------------------------------------
+# Pedal Trace Widget (rolling throttle/brake chart)
+# ---------------------------------------------------------------------------
+
+_TRACE_SAMPLES = 300  # number of samples to display
+
+
+class PedalTraceWidget(QWidget):
+    """Real-time rolling chart of throttle (green) and brake (red)."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._throttle: deque = deque([0.0] * _TRACE_SAMPLES, maxlen=_TRACE_SAMPLES)
+        self._brake:    deque = deque([0.0] * _TRACE_SAMPLES, maxlen=_TRACE_SAMPLES)
+        self.setMinimumHeight(70)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+
+    def push(self, throttle: float, brake: float) -> None:
+        self._throttle.append(max(0.0, min(1.0, throttle)))
+        self._brake.append(max(0.0, min(1.0, brake)))
+        self.update()
+
+    def paintEvent(self, _):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        w, h = self.width(), self.height()
+
+        # Background
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(QBrush(QColor("#0d0d0d")))
+        p.drawRoundedRect(0, 0, w, h, 4, 4)
+
+        # Border
+        p.setPen(QPen(QColor("#333333"), 1))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawRoundedRect(0, 0, w, h, 4, 4)
+
+        n = _TRACE_SAMPLES
+        step = w / (n - 1) if n > 1 else w
+
+        def build_poly(data, color: QColor):
+            pts = []
+            for i, v in enumerate(data):
+                x = i * step
+                y = h - 1 - v * (h - 2)
+                pts.append(QPointF(x, y))
+            pen = QPen(color, 1.5)
+            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+            pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+            p.setPen(pen)
+            p.setBrush(Qt.BrushStyle.NoBrush)
+            if len(pts) >= 2:
+                p.drawPolyline(QPolygonF(pts))
+
+        build_poly(self._throttle, QColor("#00cc44"))
+        build_poly(self._brake,    QColor("#cc2200"))
+
+        p.end()
+
+
+# ---------------------------------------------------------------------------
+# Track Map Widget
+# ---------------------------------------------------------------------------
+
+_MAP_HISTORY = 5000  # max XZ points stored for track outline
+
+
+class TrackMapWidget(QWidget):
+    """Accumulates world XZ positions to draw a track outline + car dot."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._track_pts: List[Tuple[float, float]] = []   # full lap outline
+        self._car_x = 0.0
+        self._car_z = 0.0
+        self._last_lap = -1
+        self.setMinimumSize(160, 160)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+
+    def update_position(self, x: float, z: float, lap: int) -> None:
+        # Reset track outline at the start of a new lap
+        if lap != self._last_lap and self._last_lap >= 0:
+            # Keep the accumulated outline from previous lap as track reference
+            pass
+        self._last_lap = lap
+        self._car_x = x
+        self._car_z = z
+        # Accumulate up to _MAP_HISTORY unique points
+        if len(self._track_pts) < _MAP_HISTORY:
+            self._track_pts.append((x, z))
+        self.update()
+
+    def clear_track(self) -> None:
+        self._track_pts.clear()
+        self.update()
+
+    def paintEvent(self, _):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        w, h = self.width(), self.height()
+
+        # Background
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(QBrush(QColor("#0d0d0d")))
+        p.drawRoundedRect(0, 0, w, h, 4, 4)
+        p.setPen(QPen(QColor("#333333"), 1))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawRoundedRect(0, 0, w, h, 4, 4)
+
+        if len(self._track_pts) < 2:
+            # No data yet
+            p.setPen(QPen(QColor("#444444")))
+            p.setFont(QFont("Segoe UI", 9))
+            p.drawText(0, 0, w, h, Qt.AlignmentFlag.AlignCenter, "No data")
+            p.end()
+            return
+
+        margin = 12
+        xs = [pt[0] for pt in self._track_pts]
+        zs = [pt[1] for pt in self._track_pts]
+        min_x, max_x = min(xs), max(xs)
+        min_z, max_z = min(zs), max(zs)
+        range_x = max_x - min_x or 1.0
+        range_z = max_z - min_z or 1.0
+        scale = min((w - 2 * margin) / range_x, (h - 2 * margin) / range_z)
+
+        def to_screen(x, z):
+            sx = margin + (x - min_x) * scale
+            sy = margin + (z - min_z) * scale
+            return QPointF(sx, sy)
+
+        # Draw track outline
+        pts = [to_screen(x, z) for x, z in self._track_pts]
+        p.setPen(QPen(QColor("#555555"), 3, Qt.PenStyle.SolidLine,
+                      Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        if len(pts) >= 2:
+            p.drawPolyline(QPolygonF(pts))
+
+        # Draw car dot
+        car_pt = to_screen(self._car_x, self._car_z)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(QBrush(QColor("#e8b400")))
+        p.drawEllipse(car_pt, 5.0, 5.0)
+
+        p.end()
+
+
+# ---------------------------------------------------------------------------
 # Main Live Dashboard
 # ---------------------------------------------------------------------------
 
@@ -388,6 +538,11 @@ class LiveDashboard(QWidget):
         pedals_row.addWidget(self._brake_bar)
         pedals_row.addWidget(self._clutch_bar)
         left_layout.addLayout(pedals_row)
+
+        # Pedal trace chart
+        self._pedal_trace = PedalTraceWidget()
+        left_layout.addWidget(self._pedal_trace)
+
         left_layout.addStretch()
         main_layout.addWidget(left_panel)
 
@@ -421,7 +576,14 @@ class LiveDashboard(QWidget):
         self._speed_label = QLabel("0")
         self._speed_label.setObjectName("labelSpeed")
         self._speed_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._speed_label.setStyleSheet(
+            "color:#ffffff; font-size:48px; font-weight:bold; font-family:Consolas;"
+        )
         speed_inner.addWidget(self._speed_label)
+        km_lbl = QLabel("km/h")
+        km_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        km_lbl.setStyleSheet("color:#666666; font-size:11px; font-family:'Segoe UI';")
+        speed_inner.addWidget(km_lbl)
 
         self._rpm_bar = RpmBarWidget()
         speed_inner.addWidget(self._rpm_bar)
@@ -486,9 +648,17 @@ class LiveDashboard(QWidget):
         self._bb_label       = self._small_value_pair(info_grid, "Brake Bias", 6)
         self._water_label    = self._small_value_pair(info_grid, "Water", 7)
 
+        # Track map
+        map_group = QGroupBox("Track Map")
+        map_inner = QVBoxLayout(map_group)
+        map_inner.setContentsMargins(4, 4, 4, 4)
+        self._track_map = TrackMapWidget()
+        map_inner.addWidget(self._track_map)
+
         right_vbox = QVBoxLayout()
         right_vbox.addWidget(right_panel)
         right_vbox.addWidget(info_group)
+        right_vbox.addWidget(map_group)
         right_vbox.addStretch()
         main_layout.addLayout(right_vbox)
 
@@ -528,6 +698,7 @@ class LiveDashboard(QWidget):
         self._throttle_bar.set_value(frame.throttle)
         self._brake_bar.set_value(frame.brake)
         self._clutch_bar.set_value(frame.clutch)
+        self._pedal_trace.push(frame.throttle, frame.brake)
 
         # Gear
         gear_map = {-1: "R", 0: "N"}
@@ -591,6 +762,9 @@ class LiveDashboard(QWidget):
         self._drs_label.setText("ON" if frame.drs_active else "off")
         self._bb_label.setText(f"{frame.brake_bias * 100:.0f}% F")
         self._water_label.setText(f"{frame.water_temp:.0f}°C" if frame.water_temp > 0 else "—")
+
+        # Track map
+        self._track_map.update_position(frame.pos_x, frame.pos_z, frame.lap_number)
 
     def clear(self) -> None:
         """Reset display when sim disconnects."""

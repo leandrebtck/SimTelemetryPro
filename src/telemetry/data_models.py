@@ -69,6 +69,10 @@ class TelemetryFrame:
     gap_ahead_ms: int = 0
     gap_behind_ms: int = 0
 
+    # ---- World position ----
+    pos_x: float = 0.0          # world X coordinate (metres)
+    pos_z: float = 0.0          # world Z coordinate (metres)
+
     # ---- Meta ----
     car_model: str = ""
     track: str = ""
