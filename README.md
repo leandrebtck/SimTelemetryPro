@@ -138,6 +138,4 @@ The default model is **Claude Opus 4.6** for the highest quality analysis. You c
 
 ---
 
-## License
 
-MIT
