@@ -51,6 +51,18 @@ class InstallWorker(QThread):
 
     def run(self):
         try:
+            # Check if app is already running (would lock the exe)
+            import subprocess as _sp
+            result = _sp.run(
+                ["tasklist", "/FI", f"IMAGENAME eq {APP_EXE}", "/NH", "/FO", "CSV"],
+                capture_output=True, text=True
+            )
+            if APP_EXE.lower() in result.stdout.lower():
+                self.finished.emit(False,
+                    f"{APP_NAME} est actuellement en cours d'exécution.\n"
+                    "Fermez l'application avant de continuer l'installation.")
+                return
+
             self._install_dir.mkdir(parents=True, exist_ok=True)
             bundle = _bundle_zip()
 
@@ -286,7 +298,8 @@ QProgressBar::chunk {
     background: #1a4a80;
     border-radius: 3px;
 }
-QCheckBox { font-size: 12px; }
+QCheckBox { font-size: 12px; color: #1a1a1a; }
+QLabel { color: #1a1a1a; }
 QLineEdit {
     border: 1px solid #ccc;
     border-radius: 3px;
