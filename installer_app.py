@@ -25,7 +25,7 @@ from PyQt6.QtWidgets import (
 APP_NAME    = "SimTelemetry Pro"
 APP_VERSION = "1.0.0"
 APP_EXE     = "SimTelemetryPro.exe"
-APP_DIR     = "SimTelemetry Pro"
+APP_DIR     = "SimTelemetryPro"
 PUBLISHER   = "SimTelemetry"
 UNINSTALL_KEY = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\SimTelemetryPro"
 
@@ -133,7 +133,7 @@ class InstallDirPage(QWizardPage):
         layout = QVBoxLayout(self)
         layout.setSpacing(10)
 
-        default_dir = str(Path(os.environ.get("PROGRAMFILES", "C:\\Program Files")) / APP_DIR)
+        default_dir = str(Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local")) / APP_DIR)
 
         dir_row = QHBoxLayout()
         self._dir_input = QLineEdit(default_dir)
