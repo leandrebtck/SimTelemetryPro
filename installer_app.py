@@ -137,7 +137,8 @@ class InstallDirPage(QWizardPage):
 
         dir_row = QHBoxLayout()
         self._dir_input = QLineEdit(default_dir)
-        self.registerField("installDir*", self._dir_input)
+        self.registerField("installDir", self._dir_input)
+        self._dir_input.textChanged.connect(self.completeChanged)
         browse_btn = QPushButton("Browse...")
         browse_btn.setFixedWidth(90)
         browse_btn.clicked.connect(self._browse)
@@ -155,6 +156,9 @@ class InstallDirPage(QWizardPage):
         layout.addWidget(self._desktop_cb)
         layout.addWidget(self._startmenu_cb)
         layout.addStretch()
+
+    def isComplete(self):
+        return bool(self._dir_input.text().strip())
 
     def _browse(self):
         d = QFileDialog.getExistingDirectory(self, "Select Install Folder", self._dir_input.text())
