@@ -262,20 +262,41 @@ class FinishPage(QWizardPage):
 
 INSTALLER_STYLE = """
 QWizard {
-    background: #f5f5f5;
+    background: #f0f0f0;
+    color: #1a1a1a;
 }
 QWizardPage {
     background: white;
+    color: #1a1a1a;
     padding: 16px;
+}
+QWidget {
+    color: #1a1a1a;
+    background: white;
 }
 QWizard QLabel#qt_wizard_titleLabel {
     font-size: 15px;
     font-weight: bold;
     color: #1a1a2e;
+    background: transparent;
 }
 QWizard QLabel#qt_wizard_subTitleLabel {
-    color: #555;
+    color: #444444;
     font-size: 12px;
+    background: transparent;
+}
+QLabel {
+    color: #1a1a1a;
+    background: transparent;
+}
+QCheckBox {
+    font-size: 12px;
+    color: #1a1a1a;
+    background: transparent;
+}
+QCheckBox::indicator {
+    width: 14px;
+    height: 14px;
 }
 QPushButton {
     background: #1a4a80;
@@ -286,25 +307,32 @@ QPushButton {
     font-weight: bold;
     min-width: 80px;
 }
-QPushButton:hover { background: #2a6abf; }
-QPushButton:disabled { background: #aaa; }
+QPushButton:hover { background: #2a6abf; color: white; }
+QPushButton:disabled { background: #aaa; color: white; }
 QProgressBar {
     border: 1px solid #ccc;
     border-radius: 4px;
     text-align: center;
     height: 22px;
+    color: #1a1a1a;
+    background: #f0f0f0;
 }
 QProgressBar::chunk {
     background: #1a4a80;
     border-radius: 3px;
 }
-QCheckBox { font-size: 12px; color: #1a1a1a; }
-QLabel { color: #1a1a1a; }
 QLineEdit {
-    border: 1px solid #ccc;
+    border: 1px solid #aaa;
     border-radius: 3px;
     padding: 5px 8px;
     font-size: 12px;
+    color: #1a1a1a;
+    background: #f8f8f8;
+}
+QTextEdit {
+    color: #1a1a1a;
+    background: #f8f8f8;
+    border: 1px solid #ccc;
 }
 """
 
