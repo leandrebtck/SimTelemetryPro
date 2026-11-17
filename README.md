@@ -1,6 +1,7 @@
 # SimTelemetry Pro
 
 Racing telemetry application for **Assetto Corsa**, **Assetto Corsa Competizione** and **Le Mans Ultimate**, with live dashboard, lap recording, Motec-style analysis and an AI driving coach powered by Claude.
+<img width="959" height="525" alt="image" src="https://github.com/user-attachments/assets/6e12e34d-7d65-4e23-82a4-7d99cc64c5f6" />
 
 ---
 
